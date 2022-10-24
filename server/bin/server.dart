@@ -6,7 +6,7 @@ final newMessages = <String>[];
 
 void main() async {
   // bind the socket server to an address and port
-  final server = await ServerSocket.bind(InternetAddress.anyIPv4, 4567);
+  final server = await ServerSocket.bind(InternetAddress.anyIPv4, 9999);
 
   // listen for clent connections to the server
   server.listen((client) {
@@ -24,7 +24,7 @@ void sendMessageAllClient(String message) {
 
 void handleConnection(Socket client) {
   stdout.writeln('Connection from'
-      ' ${client.remoteAddress.address}:${client.remotePort}');
+      '${client.remoteAddress.address}:${client.remotePort}');
 
   // listen for events from the client
   client.listen(
@@ -33,9 +33,15 @@ void handleConnection(Socket client) {
       await Future.delayed(Duration(seconds: 1));
       final message = String.fromCharCodes(data);
 
+      final currentClient =
+          '${client.remoteAddress.address}:${client.remotePort}';
+
       for (Socket s in list) {
-        await Future.delayed(Duration(seconds: 1));
-        s.write(message);
+        try {
+          if (currentClient != '${s.remoteAddress.address}:${s.remotePort}') {
+            s.write(message);
+          }
+        } catch (_) {}
       }
     },
 
