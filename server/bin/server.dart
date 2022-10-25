@@ -25,51 +25,53 @@ void handleConnection(Socket client) {
   client.listen(
     // handle data from the client
     (Uint8List data) async {
-      await Future.delayed(Duration(seconds: 1));
-      final message = String.fromCharCodes(data);
+      try {
+        await Future.delayed(Duration(seconds: 1));
+        final message = String.fromCharCodes(data);
 
-      final objectTransfer = jsonDecode(message);
+        final objectTransfer = jsonDecode(message);
 
-      var isNewMessage = false;
+        var isNewMessage = false;
 
-      //Evento de nova mensagem, envia a notificação pro cliente que o servidor recebeu a mensagem
-      if (objectTransfer['event'] == ChatObjectEvent.newMessage) {
-        isNewMessage = true;
+        //Evento de nova mensagem, envia a notificação pro cliente que o servidor recebeu a mensagem
+        if (objectTransfer['event'] == ChatObjectEvent.newMessage) {
+          isNewMessage = true;
 
-        try {
-          objectTransfer['event'] = ChatObjectEvent.serverReceived;
-          client.write(
-            jsonEncode(
-              objectTransfer,
-            ),
-          );
-          await Future.delayed(Duration(seconds: 1));
-        } catch (_) {}
-      }
+          try {
+            objectTransfer['event'] = ChatObjectEvent.serverReceived;
+            client.write(
+              jsonEncode(
+                objectTransfer,
+              ),
+            );
+            await Future.delayed(Duration(seconds: 1));
+          } catch (_) {}
+        }
 
-      //Dispara a mensagem para todos os outros clientes
-      final currentClient =
-          '${client.remoteAddress.address}:${client.remotePort}';
-      for (Socket s in list) {
-        try {
-          if (currentClient != '${s.remoteAddress.address}:${s.remotePort}') {
-            s.write(message);
-          }
-        } catch (_) {}
-      }
-      await Future.delayed(Duration(seconds: 1));
+        //Dispara a mensagem para todos os outros clientes
+        final currentClient =
+            '${client.remoteAddress.address}:${client.remotePort}';
+        for (Socket s in list) {
+          try {
+            if (currentClient != '${s.remoteAddress.address}:${s.remotePort}') {
+              s.write(message);
+            }
+          } catch (_) {}
+        }
+        await Future.delayed(Duration(seconds: 1));
 
-      //Envia a notificação de entregue
-      if (isNewMessage) {
-        try {
-          objectTransfer['event'] = ChatObjectEvent.otherUsersReceived;
-          client.write(
-            jsonEncode(
-              objectTransfer,
-            ),
-          );
-        } catch (_) {}
-      }
+        //Envia a notificação de entregue
+        if (isNewMessage) {
+          try {
+            objectTransfer['event'] = ChatObjectEvent.otherUsersReceived;
+            client.write(
+              jsonEncode(
+                objectTransfer,
+              ),
+            );
+          } catch (_) {}
+        }
+      } catch (_) {}
     },
 
     // handle errors
