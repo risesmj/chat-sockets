@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:clientgui/entities/chat_message.dart';
+import 'package:clientgui/entities/chat_object_transfer.dart';
 import 'package:clientgui/pages/chat_event.dart';
 import 'package:clientgui/pages/chat_state.dart';
 import 'package:flutter/cupertino.dart';
@@ -33,10 +35,13 @@ class ChatViewModel extends Bloc<ChatEvent, ChatState> {
       // handle data from the server
       (Uint8List data) {
         final serverResponse = String.fromCharCodes(data);
+        final objectTransfer = ChatObjectTransfer.fromJson(serverResponse);
+        final message =
+            "${objectTransfer.user} ${objectTransfer.date} disse: ${objectTransfer.content}";
 
         messages.value.add(
           ChatMessage(
-            message: serverResponse,
+            message: message,
             type: TypeMessage.server,
           ),
         );
@@ -69,13 +74,19 @@ class ChatViewModel extends Bloc<ChatEvent, ChatState> {
 
   _handlerSendMessageEvent(SendMessageEvent event, emit) async {
     if (event.message.isNotEmpty) {
-      final messageFormatted =
-          "$userName - ${_getDate()} disse: ${event.message}";
-      socket?.write(messageFormatted);
+      final objectTransfer = ChatObjectTransfer(
+        event: ChatObjectEvent.newMessage,
+        user: userName,
+        date: _getDate(),
+        content: event.message,
+      );
+
+      socket?.write(jsonEncode(objectTransfer.toJson()));
       ctrlTextController.clear();
       messages.value.add(
         ChatMessage(
-          message: "${_getDate()} disse: ${event.message}",
+          message:
+              "${objectTransfer.user} ${objectTransfer.date} disse: ${objectTransfer.content}",
           type: TypeMessage.you,
         ),
       );
@@ -95,10 +106,10 @@ class ChatViewModel extends Bloc<ChatEvent, ChatState> {
         ? "0${local.month.toString()}"
         : local.month.toString();
 
-    String _formatted = "$day/$month/${local.year}";
+    String formatted = "$day/$month/${local.year}";
 
-    _formatted = "$_formatted ${local.hour}h${local.minute}m";
+    formatted = "$formatted ${local.hour}h${local.minute}m";
 
-    return _formatted;
+    return formatted;
   }
 }
