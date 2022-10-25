@@ -3,6 +3,7 @@ import 'package:clientgui/pages/chat_event.dart';
 import 'package:clientgui/pages/chat_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_triple/flutter_triple.dart';
 
 class ChatPage extends StatefulWidget {
   final ChatViewModel viewModel = ChatViewModel();
@@ -16,6 +17,17 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  @override
+  void initState() {
+    super.initState();
+    widget.viewModel.on<ScrollToBottomEvent>((ScrollToBottomEvent event, emit) {
+      widget.viewModel.ctrlScrollMessages
+          .jumpTo(widget.viewModel.ctrlScrollMessages.position.maxScrollExtent);
+
+      setState(() {});
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,6 +51,14 @@ class _ChatPageState extends State<ChatPage> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: RxBuilder(
+                  builder: ((context) => Text(
+                        widget.viewModel.userTyping.value,
+                      )),
+                ),
+              ),
               BlocBuilder(
                 bloc: widget.viewModel,
                 builder: _buildBloc,
@@ -54,6 +74,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildBloc(BuildContext context, state) {
     return Expanded(
       child: ListView.builder(
+        controller: widget.viewModel.ctrlScrollMessages,
         itemCount: widget.viewModel.messages.value.length,
         shrinkWrap: true,
         itemBuilder: (ctx, index) => ListTile(
@@ -66,22 +87,50 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildItemMessage(ChatMessage chatMessage) {
+    var status = "Não enviado";
+    if (chatMessage.received) {
+      status = "Recebido";
+    }
+
+    if (chatMessage.delivered || chatMessage.read) {
+      status = "Entregue";
+    }
+
+    if (chatMessage.read) {
+      status = "Lido";
+    }
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: chatMessage.type == TypeMessage.you
-            ? Text(
-                "Você: ${chatMessage.message}",
-                style: const TextStyle(
-                  color: Colors.blue,
-                ),
-              )
-            : Text(
-                chatMessage.message,
-                style: const TextStyle(
-                  color: Colors.red,
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: chatMessage.type == TypeMessage.you
+                  ? Text(
+                      "Você: ${chatMessage.message}",
+                      style: const TextStyle(
+                        color: Colors.blue,
+                      ),
+                    )
+                  : Text(
+                      chatMessage.message,
+                      style: const TextStyle(
+                        color: Colors.red,
+                      ),
+                    ),
+            ),
+            if (chatMessage.type == TypeMessage.you)
+              Text(
+                status,
+                style: TextStyle(
+                  color: chatMessage.read ? Colors.purple : Colors.green,
                 ),
               ),
+          ],
+        ),
       ),
     );
   }
@@ -95,8 +144,14 @@ class _ChatPageState extends State<ChatPage> {
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width),
         child: TextFormField(
           controller: widget.viewModel.ctrlTextController,
+          onChanged: (s) {
+            widget.viewModel.add(TypingEvent());
+          },
           onFieldSubmitted: (value) {
             widget.viewModel.add(SendMessageEvent(value));
+          },
+          onEditingComplete: () {
+            widget.viewModel.add(StopTypingEvent());
           },
           style: const TextStyle(color: Colors.grey),
           cursorColor: Colors.grey[300],
